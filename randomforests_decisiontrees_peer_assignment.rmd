@@ -1,0 +1,109 @@
+# Practical Machine Learning: Prediction Assignment
+## Predicting exercise performance from wearables data
+By Aoibhinn Reddington
+
+## Executive Summary
+Data from wearables (such as FitBit, Nike FuelBand, and Jawbone Up) were analyzed to predict how the subjects performed on exercise tasks. Two different machine learning algorithms were compared. The random forest algorithm showed a much higher accuracy (99%) than the decision tree (69%), and was used for the final prediction. 
+
+## Assignment
+
+### Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+### What you should submit
+
+One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, you will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+## Methods
+
+We make the prediction with two different algorithms: Random forests and decision tree. We assess their performances with cross validation. This means that we divide the training data set into a training set and a validation set. This is used to develop the model. Then, finally, the model can be assessed by testing it on the original testing set.
+
+Our data is structured in such a way that each entry belongs to one of 5 classes. The output of our prediction should be the correct class. These classes are unordered, because they correspond to common mistakes made during the exercises. Therefore, out of sample error is a good measure of accuracy to assess model performance. 
+
+## Results
+
+### Loading libraries and raw data
+
+To ensure reproducibility, the libraries required and the preprocessing steps are listed here. Also, the seed is set to 23232. 
+
+```{r loading}
+library(caret); library(randomForest); library(rpart); library(rpart.plot);library(lattice); library(ggplot2); library(rattle)
+
+URL_train <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+URL_test <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+training <- read.csv(url(URL_train), na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(URL_test), na.strings=c("NA","#DIV/0!",""))
+
+set.seed(23232)
+
+```
+
+Next, we create training, testing, and validation sets with the caret package. We put 70% of the data into the training subset and the other 30% in the test subset.
+
+```{r proproc}
+
+# Turn the classe variable into a factor
+training$classe<-as.factor(training$classe)
+
+# Removing columns with >= 90% NaNs
+training <- training[,(colSums(is.na(training))<0.9*nrow(training))]
+
+# Removing irrelevant variables
+training <-training[,-c(1:7)]
+
+# Creating train, test and validation sets
+inTrain <- createDataPartition(y=training$classe, p=0.7, list=FALSE)
+training2 <- training[inTrain,]
+testing2 <- training[-inTrain,]
+
+```
+
+The first model: Decision tree
+
+```{r dt}
+model1 <- rpart(classe ~ ., data=training2, method="class")
+
+# plot the decision tree
+fancyRpartPlot(model1)
+```
+
+Take a look at performance:
+
+```{r perf}
+prediction1 <- predict(model1, testing2, type = "class")
+
+confusionMatrix(prediction1, testing2$classe)
+```
+
+The second model: Random Forest
+
+```{r RF}
+model2 <- randomForest(classe ~. , data=training2, method="class")
+prediction2 <- predict(model2, testing2, type = "class")
+confusionMatrix(prediction2, testing2$classe)
+```
+
+### Conclusion
+
+We see that the random forests method achieves a much higher accuracy: 99.42% versus the 69.41% that was achieved by the decision tree method. 
+
+The expected out of sample error is 1 - 99.42% = 0.58%
+
+We therefore make our final prediction with the random forest model:
+
+```{r finalmodel}
+prediction <- data.frame(predict(model2,testing))
+
+prediction
+
+```
